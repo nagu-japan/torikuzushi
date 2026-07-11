@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>取崩し帳</title>
+<meta name="theme-color" content="#2B4C7E">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="取崩し帳">
+<style>
+:root{
+  --paper:#FAF8F2; --paper2:#F0EDE4; --ink:#1C1B18; --ink2:#6B675E;
+  --ai:#2B4C7E; --ai-deep:#1F3A5F; --shu:#C73E2E; --line:#DDD8CB;
+  --ok:#1D7A5F;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{font-size:16px}
+body{
+  font-family:"Hiragino Sans","Yu Gothic","Noto Sans JP",sans-serif;
+  background:var(--paper); color:var(--ink); line-height:1.6;
+  padding-bottom:calc(24px + env(safe-area-inset-bottom));
+}
+.num{font-variant-numeric:tabular-nums; font-feature-settings:"tnum"}
+header{
+  background:var(--ai-deep); color:#F4F1E8;
+  padding:calc(14px + env(safe-area-inset-top)) 20px 14px;
+  display:flex; align-items:baseline; justify-content:space-between;
+}
+header h1{
+  font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;
+  font-size:1.15rem; font-weight:600; letter-spacing:.35em;
+}
+header .ym{font-size:.8rem; opacity:.75}
+main{max-width:520px; margin:0 auto; padding:16px}
+
+/* ---- 自由枠カード ---- */
+.waku-card{
+  background:#fff; border:1px solid var(--line); border-radius:14px;
+  padding:20px 18px 16px; position:relative; overflow:hidden;
+  box-shadow:0 1px 4px rgba(28,27,24,.05);
+}
+.waku-card .label{font-size:.75rem; color:var(--ink2); letter-spacing:.15em}
+.waku-card .month{font-size:.8rem; color:var(--ai); margin-bottom:2px}
+.waku-val{
+  font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;
+  font-size:2.6rem; font-weight:600; line-height:1.2;
+}
+.waku-val small{font-size:1.1rem; margin-left:2px}
+.waku-val.minus{color:var(--shu)}
+.waku-note{font-size:.72rem; color:var(--ink2); margin-top:4px}
+.formula{font-size:.72rem; color:var(--ink2); margin-top:10px; border-top:1px dashed var(--line); padding-top:8px}
+
+/* 朱印 */
+.seal{
+  position:absolute; top:14px; right:16px; width:58px; height:58px;
+  border:3px solid var(--shu); border-radius:8px; color:var(--shu);
+  font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;
+  font-size:1.9rem; font-weight:700; display:flex; align-items:center; justify-content:center;
+  transform:rotate(-6deg); opacity:0; transition:opacity .15s, transform .25s cubic-bezier(.2,2.2,.4,1);
+}
+.seal.show{opacity:.92}
+.seal.stamp{animation:stamp .35s cubic-bezier(.2,2.2,.4,1)}
+@keyframes stamp{0%{transform:rotate(-6deg) scale(2.2); opacity:0}60%{opacity:1}100%{transform:rotate(-6deg) scale(1)}}
+@media(prefers-reduced-motion:reduce){.seal.stamp{animation:none}}
+
+/* ---- 入力 ---- */
+.entry{background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px 18px; margin-top:14px}
+.entry h2, .sec h2{
+  font-size:.8rem; color:var(--ink2); letter-spacing:.2em; font-weight:600; margin-bottom:10px;
+}
+.row{display:flex; align-items:center; gap:10px; margin-bottom:10px}
+.row label{flex:0 0 6.5em; font-size:.85rem}
+.row input[type=number], .row input[type=text], .row input[type=month]{
+  flex:1; min-width:0; font-size:1.05rem; padding:10px 12px;
+  border:1px solid var(--line); border-radius:10px; background:var(--paper);
+  color:var(--ink); font-variant-numeric:tabular-nums;
+}
+.row input:focus{outline:2px solid var(--ai); outline-offset:1px; border-color:var(--ai)}
+.row .unit{flex:0 0 auto; font-size:.8rem; color:var(--ink2)}
+button{
+  font-family:inherit; font-size:1rem; border:none; border-radius:12px;
+  padding:13px 16px; cursor:pointer;
+}
+button:focus-visible{outline:3px solid var(--ai); outline-offset:2px}
+.btn-main{width:100%; background:var(--ai); color:#fff; font-weight:600; letter-spacing:.2em; margin-top:4px}
+.btn-main:active{background:var(--ai-deep)}
+.btn-sub{width:100%; background:var(--paper2); color:var(--ai-deep); font-size:.85rem; margin-top:8px}
+.status{font-size:.75rem; margin-top:8px; color:var(--ink2); min-height:1.2em}
+.status.err{color:var(--shu)}
+.status.ok{color:var(--ok)}
+
+/* ---- 集計・履歴 ---- */
+.sec{margin-top:18px}
+.summary{display:flex; gap:10px; margin-bottom:10px}
+.sum-box{flex:1; background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 12px}
+.sum-box .k{font-size:.68rem; color:var(--ink2)}
+.sum-box .v{font-family:"Hiragino Mincho ProN","Yu Mincho",serif; font-size:1.25rem; font-weight:600}
+.ledger{background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden}
+.ledger-row{
+  display:grid; grid-template-columns:5.2em 1fr 1fr 1.2fr 2.2em;
+  gap:4px; padding:10px 12px; border-bottom:1px solid var(--paper2);
+  font-size:.85rem; align-items:center;
+}
+.ledger-row:last-child{border-bottom:none}
+.ledger-row.head{background:var(--paper2); font-size:.68rem; color:var(--ink2); padding:6px 12px}
+.ledger-row .r{text-align:right}
+.ledger-row .waku.minus{color:var(--shu)}
+.mini-seal{
+  width:1.6em; height:1.6em; border:2px solid var(--shu); border-radius:4px; color:var(--shu);
+  font-size:.75rem; font-weight:700; display:flex; align-items:center; justify-content:center;
+  transform:rotate(-6deg); justify-self:end;
+  font-family:"Hiragino Mincho ProN","Yu Mincho",serif;
+}
+.del{background:none; color:var(--ink2); font-size:.7rem; padding:4px; text-decoration:underline}
+.empty{padding:20px; text-align:center; color:var(--ink2); font-size:.85rem}
+
+/* ---- 設定 ---- */
+details.settings{background:#fff; border:1px solid var(--line); border-radius:14px; margin-top:18px}
+details.settings summary{
+  padding:14px 18px; font-size:.85rem; font-weight:600; color:var(--ai-deep);
+  cursor:pointer; list-style:none; display:flex; justify-content:space-between;
+}
+details.settings summary::-webkit-details-marker{display:none}
+details.settings summary::after{content:"＋"; color:var(--ink2)}
+details.settings[open] summary::after{content:"−"}
+.settings-body{padding:0 18px 16px}
+.hint{font-size:.72rem; color:var(--ink2); margin:6px 0 12px}
+.io-row{display:flex; gap:8px}
+.io-row button{flex:1; font-size:.8rem; background:var(--paper2); color:var(--ai-deep)}
+footer{max-width:520px; margin:20px auto 0; padding:0 18px; font-size:.68rem; color:var(--ink2)}
+</style>
+</head>
+<body>
+<header>
+  <h1>取崩し帳</h1>
+  <span class="ym num" id="today"></span>
+</header>
+
+<main>
+  <!-- 自由枠 -->
+  <div class="waku-card">
+    <div class="seal" id="seal">可</div>
+    <div class="month num" id="targetMonthLabel"></div>
+    <div class="label">今月の自由枠</div>
+    <div class="waku-val num" id="wakuVal">—<small>万円</small></div>
+    <div class="waku-note">生活費を除いて、上乗せで使ってよい額</div>
+    <div class="formula num" id="formula"></div>
+  </div>
+
+  <!-- 記帳 -->
+  <div class="entry">
+    <h2>記帳</h2>
+    <div class="row">
+      <label for="targetMonth">対象月</label>
+      <input type="month" id="targetMonth">
+    </div>
+    <div class="row">
+      <label for="income">前月の収入</label>
+      <input type="number" id="income" inputmode="decimal" placeholder="25" step="0.1">
+      <span class="unit">万円</span>
+    </div>
+    <div class="row">
+      <label for="expense">前月の支出</label>
+      <input type="number" id="expense" inputmode="decimal" placeholder="20" step="0.1">
+      <span class="unit">万円</span>
+    </div>
+    <button class="btn-main" id="record">記帳する</button>
+    <button class="btn-sub" id="gasFetch">家計簿シートから自動取得</button>
+    <div class="status" id="gasStatus"></div>
+  </div>
+
+  <!-- 集計 -->
+  <div class="sec">
+    <h2>直近12ヶ月</h2>
+    <div class="summary">
+      <div class="sum-box"><div class="k">自由枠 合計</div><div class="v num" id="sum12">—</div></div>
+      <div class="sum-box"><div class="k">月平均</div><div class="v num" id="avg12">—</div></div>
+    </div>
+    <div class="ledger" id="ledger"></div>
+  </div>
+
+  <!-- 設定 -->
+  <details class="settings">
+    <summary id="settingsSummary">設定</summary>
+    <div class="settings-body">
+      <div class="row">
+        <label for="assets">投資資産額</label>
+        <input type="number" id="assets" inputmode="numeric">
+        <span class="unit">万円</span>
+      </div>
+      <div class="row">
+        <label for="rate">取崩し率</label>
+        <input type="number" id="rate" inputmode="decimal" step="0.1">
+        <span class="unit">%/年</span>
+      </div>
+      <div class="row">
+        <label for="gasUrl">GAS連携URL</label>
+        <input type="text" id="gasUrl" placeholder="https://script.google.com/.../exec?token=...">
+      </div>
+      <p class="hint">月次取崩し枠 = 資産額 × 率 ÷ 12。資産額は年1回程度、実際の値に更新すれば枠も追随します。</p>
+      <button class="btn-main" id="saveSettings">設定を保存</button>
+      <div class="io-row" style="margin-top:8px">
+        <button id="exportBtn">記録を書き出す</button>
+        <button id="importBtn">記録を読み込む</button>
+        <input type="file" id="importFile" accept=".json" hidden>
+      </div>
+      <div class="status" id="setStatus"></div>
+    </div>
+  </details>
+</main>
+
+<footer>
+  データはこの端末内(ブラウザ)にのみ保存されます。機種変更前は「記録を書き出す」でバックアップを。
+</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const KEY = 'torikuzushi-pwa-v1';
+
+let state = { settings: { assets: 9533, rate: 3.6, gasUrl: '' }, records: [] };
+try {
+  const saved = JSON.parse(localStorage.getItem(KEY));
+  if (saved && saved.settings) state = saved;
+} catch(e) {}
+
+const save = () => localStorage.setItem(KEY, JSON.stringify(state));
+const monthlyWaku = () => state.settings.assets * state.settings.rate / 100 / 12;
+const fmt = n => (Math.round(n * 10) / 10).toLocaleString('ja-JP', {minimumFractionDigits:0, maximumFractionDigits:1});
+const prevMonth = ym => { const [y,m] = ym.split('-').map(Number); const d = new Date(y, m-2); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
+
+// 初期化
+const now = new Date();
+$('today').textContent = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
+$('targetMonth').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+$('assets').value = state.settings.assets;
+$('rate').value = state.settings.rate;
+$('gasUrl').value = state.settings.gasUrl;
+
+function updateSummaryLabel(){
+  $('settingsSummary').textContent = `設定（${fmt(state.settings.assets)}万円 × ${state.settings.rate}%）`;
+}
+
+function calc(){
+  const inc = parseFloat($('income').value);
+  const exp = parseFloat($('expense').value);
+  const ym = $('targetMonth').value;
+  const [y,m] = ym ? ym.split('-') : ['',''];
+  $('targetMonthLabel').textContent = ym ? `${y}年${Number(m)}月分` : '';
+  const waku = monthlyWaku();
+  const seal = $('seal');
+  if (isNaN(inc) || isNaN(exp)) {
+    $('wakuVal').innerHTML = '—<small>万円</small>';
+    $('wakuVal').classList.remove('minus');
+    seal.classList.remove('show');
+    $('formula').textContent = `取崩し枠 ${fmt(waku)}万円/月（${fmt(state.settings.assets)}万円 × ${state.settings.rate}% ÷ 12）`;
+    return null;
+  }
+  const free = inc + waku - exp;
+  $('wakuVal').innerHTML = `${free < 0 ? '−' : ''}${fmt(Math.abs(free))}<small>万円</small>`;
+  $('wakuVal').classList.toggle('minus', free < 0);
+  seal.textContent = free >= 0 ? '可' : '超';
+  seal.classList.add('show');
+  $('formula').textContent = `収入 ${fmt(inc)} ＋ 枠 ${fmt(waku)} − 支出 ${fmt(exp)} ＝ ${fmt(free)}万円`;
+  return { ym, income: inc, expense: exp, waku: Math.round(waku*10)/10, free: Math.round(free*10)/10 };
+}
+
+function render(){
+  updateSummaryLabel();
+  calc();
+  const sorted = [...state.records].sort((a,b) => b.ym.localeCompare(a.ym));
+  const led = $('ledger');
+  if (!sorted.length) {
+    led.innerHTML = '<div class="empty">まだ記帳がありません。前月の収入と支出を入れて「記帳する」を押すと、ここに積み上がります。</div>';
+  } else {
+    led.innerHTML = '<div class="ledger-row head"><span>月</span><span class="r">収入</span><span class="r">支出</span><span class="r">自由枠</span><span></span></div>' +
+      sorted.map((r,i) => {
+        const [y,m] = r.ym.split('-');
+        return `<div class="ledger-row num">
+          <span>${y}.${m}</span>
+          <span class="r">${fmt(r.income)}</span>
+          <span class="r">${fmt(r.expense)}</span>
+          <span class="r waku ${r.free<0?'minus':''}">${r.free<0?'−':''}${fmt(Math.abs(r.free))}万</span>
+          <span class="mini-seal">${r.free>=0?'可':'超'}</span>
+        </div>`;
+      }).join('') +
+      `<div class="ledger-row" style="justify-content:end"><span></span><span></span><span></span><span class="r"><button class="del" id="delLast">最新の記帳を削除</button></span><span></span></div>`;
+    const d = $('delLast');
+    if (d) d.onclick = () => {
+      if (!confirm(`${sorted[0].ym} の記帳を削除しますか？`)) return;
+      state.records = state.records.filter(r => r.ym !== sorted[0].ym);
+      save(); render();
+    };
+  }
+  const recent = sorted.slice(0, 12);
+  if (recent.length) {
+    const total = recent.reduce((s,r) => s + r.free, 0);
+    $('sum12').textContent = `${total<0?'−':''}${fmt(Math.abs(total))}万`;
+    $('avg12').textContent = `${fmt(total/recent.length)}万`;
+  } else {
+    $('sum12').textContent = '—'; $('avg12').textContent = '—';
+  }
+}
+
+['income','expense','targetMonth'].forEach(id => $(id).addEventListener('input', calc));
+
+$('record').onclick = () => {
+  const r = calc();
+  if (!r) { alert('前月の収入と支出を入力してください'); return; }
+  const idx = state.records.findIndex(x => x.ym === r.ym);
+  if (idx >= 0) {
+    if (!confirm(`${r.ym} は記帳済みです。上書きしますか？`)) return;
+    state.records[idx] = r;
+  } else {
+    state.records.push(r);
+  }
+  save();
+  const seal = $('seal');
+  seal.classList.remove('stamp'); void seal.offsetWidth; seal.classList.add('stamp');
+  render();
+};
+
+$('saveSettings').onclick = () => {
+  state.settings.assets = parseFloat($('assets').value) || state.settings.assets;
+  state.settings.rate = parseFloat($('rate').value) || state.settings.rate;
+  state.settings.gasUrl = $('gasUrl').value.trim();
+  save(); render();
+  $('setStatus').textContent = '保存しました';
+  $('setStatus').className = 'status ok';
+  setTimeout(() => $('setStatus').textContent = '', 2000);
+};
+
+// GAS連携
+$('gasFetch').onclick = async () => {
+  const url = state.settings.gasUrl;
+  const st = $('gasStatus');
+  if (!url) { st.textContent = '設定欄でGAS連携URLを先に保存してください'; st.className = 'status err'; return; }
+  st.textContent = 'GAS経由で読み込んでいます…'; st.className = 'status';
+  try {
+    const ym = prevMonth($('targetMonth').value || `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`);
+    const sep = url.includes('?') ? '&' : '?';
+    const res = await fetch(`${url}${sep}month=${ym}`, { redirect: 'follow' });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    const pick = keys => { for (const k of keys) if (data[k] != null && !isNaN(parseFloat(data[k]))) return parseFloat(data[k]); return null; };
+    let inc = pick(['income_man','income','収入']);
+    let exp = pick(['expense_man','expense','支出']);
+    const incYen = pick(['income_yen','incomeYen']);
+    const expYen = pick(['expense_yen','expenseYen']);
+    if (inc == null && incYen != null) inc = incYen / 10000;
+    if (exp == null && expYen != null) exp = expYen / 10000;
+    if (inc == null && exp == null) throw new Error('応答に収入・支出が見つかりません: ' + JSON.stringify(data).slice(0,120));
+    if (inc != null) $('income').value = Math.round(inc*10)/10;
+    if (exp != null) $('expense').value = Math.round(exp*10)/10;
+    calc();
+    st.textContent = `${ym} の実績を取得しました`; st.className = 'status ok';
+  } catch(e) {
+    st.textContent = `取得できませんでした: ${e.message}`; st.className = 'status err';
+  }
+};
+
+// バックアップ
+$('exportBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `torikuzushi-backup-${$('today').textContent.replaceAll('.','')}.json`;
+  a.click();
+};
+$('importBtn').onclick = () => $('importFile').click();
+$('importFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    if (!data.settings || !Array.isArray(data.records)) throw new Error('形式が違います');
+    state = data; save();
+    $('assets').value = state.settings.assets;
+    $('rate').value = state.settings.rate;
+    $('gasUrl').value = state.settings.gasUrl;
+    render();
+    $('setStatus').textContent = `${data.records.length}件の記録を読み込みました`;
+    $('setStatus').className = 'status ok';
+  } catch(err) {
+    $('setStatus').textContent = '読み込めませんでした: ' + err.message;
+    $('setStatus').className = 'status err';
+  }
+  e.target.value = '';
+};
+
+render();
+
+// Service Worker(PWA)
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
