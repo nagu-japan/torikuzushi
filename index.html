@@ -341,7 +341,7 @@ $('gasFetch').onclick = async () => {
   try {
     const ym = prevMonth($('targetMonth').value || `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`);
     const sep = url.includes('?') ? '&' : '?';
-    const res = await fetch(`${url}${sep}mode=budget&month=${ym}`, { redirect: 'follow' });
+    const res = await fetch(`${url}${sep}mode=budget&year=${ym.split('-')[0]}&month=${Number(ym.split('-')[1])}`, { redirect: 'follow' });    
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     const pick = keys => { for (const k of keys) if (data[k] != null && !isNaN(parseFloat(data[k]))) return parseFloat(data[k]); return null; };
